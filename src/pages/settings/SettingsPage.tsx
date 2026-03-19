@@ -52,9 +52,9 @@ export default function SettingsPage({ title, columns, data: initialData, modalF
         {fields.map((f, i) => (
           <div className="form-group" key={i}>
             <label className="form-label">{f.label}</label>
-            {'options' in f && f.options ? <select className="input select-input">{f.options.map(o => <option key={o}>{o}</option>)}</select> :
-              'type' in f && f.type === 'toggle' ? <div><label style={{ fontSize: 12, cursor: 'pointer' }}><input type="checkbox" defaultChecked /> Active</label></div> :
-              <input className="input" type={'type' in f ? f.type || 'text' : 'text'} />}
+            {f.options ? <select className="input select-input">{f.options.map((o: string) => <option key={o}>{o}</option>)}</select> :
+              f.type === 'toggle' ? <div><label style={{ fontSize: 12, cursor: 'pointer' }}><input type="checkbox" defaultChecked /> Active</label></div> :
+              <input className="input" type={(f.type as string) || 'text'} />}
           </div>
         ))}
       </Modal>
