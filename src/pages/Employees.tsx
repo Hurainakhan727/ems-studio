@@ -1,255 +1,188 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { useData } from "../contexts/DataContext";
-import { getStatusColor } from "../data/dummyData";
-import { Plus, Search, Eye, Pencil, Trash2 } from "lucide-react";
-import ConfirmDialog from "../components/ConfirmDialog";
-import { useToastContext } from "../contexts/ToastContext";
+import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useData } from '../contexts/DataContext';
+import { getStatusColor } from '../data/dummyData';
+import { Plus, Search, Eye, Pencil, Trash2, ChevronUp, ChevronDown, Download, Mail, ArrowUpDown } from 'lucide-react';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useToastContext } from '../contexts/ToastContext';
 
-// Helper function to highlight matching text
-function HighlightText({ text, search }: { text: string; search: string }) {
-  if (!search.trim()) return <>{text}</>;
-  const regex = new RegExp(
-    `(${search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
-    "gi",
-  );
-  const parts = text.split(regex);
-  return (
-    <>
-      {parts.map((part, i) =>
-        regex.test(part) ? (
-          <mark
-            key={i}
-            style={{ background: "#fff176", padding: "0 2px", borderRadius: 2 }}
-          >
-            {part}
-          </mark>
-        ) : (
-          <span key={i}>{part}</span>
-        ),
-      )}
-    </>
-  );
-}
+type SortKey = 'id' | 'name' | 'department' | 'designation' | 'employmentType' | 'jobStatus' | 'shift' | 'dateOfJoining';
+type SortDir = 'asc' | 'desc';
 
 export default function Employees() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { showToast } = useToastContext();
-  const { employees, deleteEmployee, departments, jobStatuses, workModes } =
-    useData();
-  const [search, setSearch] = useState("");
-  const [deptFilter, setDeptFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [modeFilter, setModeFilter] = useState("");
+  const { employees, deleteEmployee, departments, jobStatuses, workModes } = useData();
+  const [search, setSearch] = useState('');
+  const [deptFilter, setDeptFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [modeFilter, setModeFilter] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
-  const [highlightIds, setHighlightIds] = useState<string[]>([]);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [sortKey, setSortKey] = useState<SortKey>('id');
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [page, setPage] = useState(0);
+  const [perPage, setPerPage] = useState(25);
 
-  // Handle URL query parameter for highlighting specific employees
-  useEffect(() => {
-    const highlightParam = searchParams.get("highlight");
-    if (highlightParam) {
-      setHighlightIds(highlightParam.split(","));
-    }
-  }, [searchParams]);
+  const filtered = useMemo(() => {
+    let list = employees.filter(e => {
+      if (search && !e.name.toLowerCase().includes(search.toLowerCase()) && !e.id.toLowerCase().includes(search.toLowerCase())) return false;
+      if (deptFilter && e.department !== deptFilter) return false;
+      if (statusFilter && e.jobStatus !== statusFilter) return false;
+      if (modeFilter && e.workMode !== modeFilter) return false;
+      return true;
+    });
+    list.sort((a: any, b: any) => {
+      const av = a[sortKey] || '';
+      const bv = b[sortKey] || '';
+      const cmp = typeof av === 'string' ? av.localeCompare(bv) : av - bv;
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return list;
+  }, [employees, search, deptFilter, statusFilter, modeFilter, sortKey, sortDir]);
 
-  const filtered = employees.filter((e) => {
-    const searchLower = search.toLowerCase();
-    if (
-      search &&
-      !e.name.toLowerCase().includes(searchLower) &&
-      !e.id.toLowerCase().includes(searchLower) &&
-      !e.department.toLowerCase().includes(searchLower) &&
-      !e.designation.toLowerCase().includes(searchLower) &&
-      !e.jobStatus.toLowerCase().includes(searchLower)
-    )
-      return false;
-    if (deptFilter && e.department !== deptFilter) return false;
-    if (statusFilter && e.jobStatus !== statusFilter) return false;
-    if (modeFilter && e.workMode !== modeFilter) return false;
-    return true;
-  });
+  const totalPages = Math.ceil(filtered.length / perPage);
+  const paged = filtered.slice(page * perPage, (page + 1) * perPage);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  };
+  const selectAll = () => {
+    if (selected.size === paged.length) setSelected(new Set());
+    else setSelected(new Set(paged.map(e => e.id)));
+  };
+
+  const bulkDelete = () => {
+    selected.forEach(id => deleteEmployee(id));
+    showToast(`${selected.size} employee(s) deleted`);
+    setSelected(new Set());
+    setBulkDeleteConfirm(false);
+  };
+
+  const clearFilters = () => { setSearch(''); setDeptFilter(''); setStatusFilter(''); setModeFilter(''); };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown size={10} style={{ opacity: .3, marginLeft: 3 }} />;
+    return sortDir === 'asc' ? <ChevronUp size={10} style={{ marginLeft: 3, color: 'var(--p)' }} /> : <ChevronDown size={10} style={{ marginLeft: 3, color: 'var(--p)' }} />;
+  };
 
   return (
     <div>
       <div className="pg-head">
-        <div>
-          <div className="pg-greet">Employees</div>
-          <div className="pg-sub">
-            Manage all employees in your organization
-          </div>
-        </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => navigate("/employees/add")}
-        >
-          <Plus size={13} /> Add Employee
-        </button>
+        <div><div className="pg-greet">Employees</div><div className="pg-sub">Manage all employees in your organization · {employees.length} total</div></div>
+        <button className="btn btn-primary" onClick={() => navigate('/employees/add')}><Plus size={13} /> Add Employee</button>
       </div>
 
+      {/* Filters */}
       <div className="card" style={{ marginBottom: 12 }}>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-            <Search
-              size={14}
-              style={{
-                position: "absolute",
-                left: 10,
-                top: "50%",
-                transform: "translateY(-50%)",
-                color: "var(--t3)",
-              }}
-            />
-            <input
-              className="input"
-              style={{ paddingLeft: 32 }}
-              placeholder="Search by name or ID..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--t3)' }} />
+            <input className="input" style={{ paddingLeft: 32 }} placeholder="Search by name or ID..." value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
           </div>
-          <select
-            className="input select-input"
-            style={{ width: 160 }}
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-          >
+          <select className="input select-input" style={{ width: 160 }} value={deptFilter} onChange={e => { setDeptFilter(e.target.value); setPage(0); }}>
             <option value="">All Departments</option>
-            {departments.map((d) => (
-              <option key={d}>{d}</option>
-            ))}
+            {departments.map(d => <option key={d}>{d}</option>)}
           </select>
-          <select
-            className="input select-input"
-            style={{ width: 140 }}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
+          <select className="input select-input" style={{ width: 140 }} value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0); }}>
             <option value="">All Statuses</option>
-            {jobStatuses.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
+            {jobStatuses.map(s => <option key={s}>{s}</option>)}
           </select>
-          <select
-            className="input select-input"
-            style={{ width: 140 }}
-            value={modeFilter}
-            onChange={(e) => setModeFilter(e.target.value)}
-          >
+          <select className="input select-input" style={{ width: 140 }} value={modeFilter} onChange={e => { setModeFilter(e.target.value); setPage(0); }}>
             <option value="">All Work Modes</option>
-            {workModes.map((m) => (
-              <option key={m}>{m}</option>
-            ))}
+            {workModes.map(m => <option key={m}>{m}</option>)}
           </select>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="table-wrap">
-          {filtered.length === 0 ? (
-            <div
-              style={{ textAlign: "center", padding: 40, color: "var(--t3)" }}
-            >
-              <Search
-                size={32}
-                style={{ margin: "0 auto 8px", opacity: 0.4 }}
-              />
-              <div style={{ fontSize: 13 }}>
-                No employees found matching your search
-              </div>
-            </div>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Emp ID</th>
-                  <th>Name</th>
-                  <th>Department</th>
-                  <th>Designation</th>
-                  <th>Type</th>
-                  <th>Status</th>
-                  <th>Shift</th>
-                  <th>Joined</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((e) => (
-                  <tr
-                    key={e.id}
-                    style={
-                      highlightIds.includes(e.id)
-                        ? {
-                            background: "var(--amberl)",
-                            borderLeft: "3px solid var(--amber)",
-                          }
-                        : {}
-                    }
-                  >
-                    <td className="mono">
-                      <HighlightText text={e.id} search={search} />
-                    </td>
-                    <td style={{ fontWeight: 600 }}>
-                      <HighlightText text={e.name} search={search} />
-                    </td>
-                    <td>
-                      <HighlightText text={e.department} search={search} />
-                    </td>
-                    <td>
-                      <HighlightText text={e.designation} search={search} />
-                    </td>
-                    <td>{e.employmentType}</td>
-                    <td>
-                      <span className={`pill ${getStatusColor(e.jobStatus)}`}>
-                        <HighlightText text={e.jobStatus} search={search} />
-                      </span>
-                    </td>
-                    <td style={{ fontSize: 11.5 }}>{e.shift}</td>
-                    <td className="mono">{e.dateOfJoining}</td>
-                    <td>
-                      <div style={{ display: "flex", gap: 4 }}>
-                        <button
-                          className="ico-btn"
-                          style={{ width: 28, height: 28 }}
-                          onClick={() => navigate(`/employees/${e.id}`)}
-                        >
-                          <Eye size={13} />
-                        </button>
-                        <button
-                          className="ico-btn"
-                          style={{ width: 28, height: 28 }}
-                          onClick={() => navigate(`/employees/edit/${e.id}`)}
-                        >
-                          <Pencil size={13} />
-                        </button>
-                        <button
-                          className="ico-btn"
-                          style={{ width: 28, height: 28 }}
-                          onClick={() => setDeleteTarget(e.id)}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {(search || deptFilter || statusFilter || modeFilter) && (
+            <button className="btn btn-sm btn-ghost" onClick={clearFilters}>Clear All</button>
           )}
         </div>
       </div>
 
-      <ConfirmDialog
-        open={!!deleteTarget}
-        title="Delete Employee"
-        message={`Are you sure you want to delete ${deleteTarget}? This action cannot be undone.`}
-        onConfirm={() => {
-          deleteEmployee(deleteTarget!);
-          showToast(`Employee ${deleteTarget} deleted`);
-          setDeleteTarget(null);
-        }}
-        onCancel={() => setDeleteTarget(null)}
-      />
+      {/* Bulk Actions */}
+      {selected.size > 0 && (
+        <div className="card" style={{ marginBottom: 12, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12, background: 'var(--pl)', border: '1px solid var(--p3)' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--p)' }}>{selected.size} selected</span>
+          <div style={{ flex: 1 }} />
+          <button className="btn btn-sm btn-ghost"><Download size={12} /> Export Selected</button>
+          <button className="btn btn-sm btn-ghost"><Mail size={12} /> Send Email</button>
+          <button className="btn btn-sm btn-danger" onClick={() => setBulkDeleteConfirm(true)}><Trash2 size={12} /> Delete Selected</button>
+        </div>
+      )}
+
+      <div className="card">
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style={{ width: 36 }}><input type="checkbox" checked={paged.length > 0 && selected.size === paged.length} onChange={selectAll} /></th>
+                <th onClick={() => toggleSort('id')} style={{ cursor: 'pointer' }}>Emp ID <SortIcon col="id" /></th>
+                <th onClick={() => toggleSort('name')} style={{ cursor: 'pointer' }}>Name <SortIcon col="name" /></th>
+                <th onClick={() => toggleSort('department')} style={{ cursor: 'pointer' }}>Department <SortIcon col="department" /></th>
+                <th onClick={() => toggleSort('designation')} style={{ cursor: 'pointer' }}>Designation <SortIcon col="designation" /></th>
+                <th onClick={() => toggleSort('employmentType')} style={{ cursor: 'pointer' }}>Type <SortIcon col="employmentType" /></th>
+                <th onClick={() => toggleSort('jobStatus')} style={{ cursor: 'pointer' }}>Status <SortIcon col="jobStatus" /></th>
+                <th>Shift</th>
+                <th onClick={() => toggleSort('dateOfJoining')} style={{ cursor: 'pointer' }}>Joined <SortIcon col="dateOfJoining" /></th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paged.length === 0 ? (
+                <tr><td colSpan={10} style={{ textAlign: 'center', padding: 40, color: 'var(--t3)' }}>No employees match your filters</td></tr>
+              ) : paged.map(e => (
+                <tr key={e.id} style={selected.has(e.id) ? { background: 'var(--pl)' } : {}}>
+                  <td><input type="checkbox" checked={selected.has(e.id)} onChange={() => toggleSelect(e.id)} /></td>
+                  <td className="mono">{e.id}</td>
+                  <td style={{ fontWeight: 600 }}>{e.name}</td>
+                  <td>{e.department}</td>
+                  <td>{e.designation}</td>
+                  <td>{e.employmentType}</td>
+                  <td><span className={`pill ${getStatusColor(e.jobStatus)}`}>{e.jobStatus}</span></td>
+                  <td style={{ fontSize: 11.5 }}>{e.shift}</td>
+                  <td className="mono">{e.dateOfJoining}</td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button className="ico-btn" style={{ width: 28, height: 28 }} onClick={() => navigate(`/employees/${e.id}`)}><Eye size={13} /></button>
+                      <button className="ico-btn" style={{ width: 28, height: 28 }} onClick={() => navigate('/employees/add')}><Pencil size={13} /></button>
+                      <button className="ico-btn" style={{ width: 28, height: 28 }} onClick={() => setDeleteTarget(e.id)}><Trash2 size={13} /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, fontSize: 12, color: 'var(--t3)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>Showing {page * perPage + 1}–{Math.min((page + 1) * perPage, filtered.length)} of {filtered.length}</span>
+            <select className="input select-input" style={{ width: 70, padding: '4px 6px', fontSize: 11 }} value={perPage} onChange={e => { setPerPage(+e.target.value); setPage(0); }}>
+              {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            <span>per page</span>
+          </div>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <button className="btn btn-sm btn-ghost" disabled={page === 0} onClick={() => setPage(p => p - 1)}>← Prev</button>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button key={i} className={`btn btn-sm ${page === i ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPage(i)}>{i + 1}</button>
+            ))}
+            <button className="btn btn-sm btn-ghost" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>Next →</button>
+          </div>
+        </div>
+      </div>
+
+      <ConfirmDialog open={!!deleteTarget} title="Delete Employee" message={`Are you sure you want to delete ${deleteTarget}? This action cannot be undone.`}
+        onConfirm={() => { deleteEmployee(deleteTarget!); showToast(`Employee ${deleteTarget} deleted`); setDeleteTarget(null); }}
+        onCancel={() => setDeleteTarget(null)} />
+      <ConfirmDialog open={bulkDeleteConfirm} title="Delete Selected Employees" message={`Delete ${selected.size} employee(s)? This cannot be undone.`}
+        onConfirm={bulkDelete} onCancel={() => setBulkDeleteConfirm(false)} />
     </div>
   );
 }
