@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useData } from '../contexts/DataContext';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserCheck, CalendarDays, AlertTriangle, Activity, Cake, ChevronLeft, ChevronRight, TrendingUp, Briefcase, BarChart3, ArrowUpRight, Download, Plus } from 'lucide-react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
+import { Users, UserCheck, CalendarDays, AlertTriangle, Activity, Cake, ChevronLeft, ChevronRight, TrendingUp, Briefcase, BarChart3, ArrowUpRight, Download, Plus, DollarSign, ClipboardList, Megaphone } from 'lucide-react';
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { formatPKR } from '../data/dummyData';
 import DecisionBanner from '../components/DecisionBanner';
 
@@ -39,8 +40,16 @@ const headcountGrowth = [
   { month: 'Mar', count: 247 },
 ];
 
+const announcements = [
+  { title: 'Office Closure — Eid ul Fitr', date: 'Mar 20, 2026', text: 'Office will remain closed from March 28 to April 1 for Eid ul Fitr celebrations.' },
+  { title: 'Annual Performance Review', date: 'Mar 15, 2026', text: 'Performance reviews for FY 2025-26 will begin from April 5. Managers should prepare evaluations.' },
+  { title: 'New Health Insurance Policy', date: 'Mar 10, 2026', text: 'Updated health insurance coverage now includes dental and vision benefits for all full-time employees.' },
+  { title: 'Team Building Event', date: 'Mar 5, 2026', text: 'Company-wide team building event scheduled for April 15 at Lake View Park.' },
+];
+
 export default function Dashboard() {
   const { user } = useAuth();
+  const { payrollData, leaveRequests, employees } = useData();
   const navigate = useNavigate();
   const [time, setTime] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t); }, []);
@@ -51,10 +60,23 @@ export default function Dashboard() {
   const timeStr = time.toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   const total = 247;
 
+  // Payroll summary
+  const totalPayroll = payrollData.reduce((s: number, p: any) => s + p.basic + p.houseRent + p.medical + p.conveyance + p.commission, 0);
+  const totalDeductions = payrollData.reduce((s: number, p: any) => s + p.absentDeduction + p.tax + p.loan + p.advance + p.latePenalty + p.otherDeduction, 0);
+  const netPayable = totalPayroll - totalDeductions;
+  const avgSalary = payrollData.length > 0 ? totalPayroll / payrollData.length : 0;
+
+  const pendingLeaves = leaveRequests.filter((l: any) => l.status === 'Pending').length;
+
+  // Performance metrics
+  const attendanceRate = 88.3;
+  const leaveUtilization = 42;
+  const onTimeRate = 93.1;
+
   const pendingActions = [
-    { text: '3 leave requests awaiting approval', action: 'Review →', emoji: '📋' },
-    { text: 'Attendance incomplete 3 employees', action: 'Mark →', emoji: '⏰' },
-    { text: 'Bank info missing EMP004, EMP005', action: 'Fix →', emoji: '🏦' },
+    { text: `${pendingLeaves} leave requests awaiting approval`, action: 'Review →', emoji: '📋', link: '/leave' },
+    { text: 'Attendance incomplete 3 employees', action: 'Mark →', emoji: '⏰', link: '/attendance' },
+    { text: 'Bank info missing EMP004, EMP005', action: 'Fix →', emoji: '🏦', link: '/employees/EMP004' },
   ];
 
   const urgentAlerts = [
@@ -99,30 +121,57 @@ export default function Dashboard() {
 
       {/* 3 Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
-        <StatCard
-          icon={<Users size={18} />}
-          iconBg="var(--pl)" iconColor="var(--p)"
-          borderColor="var(--p)"
-          value="247" label="Total Employees"
-          trend="↑ 2.4%" trendColor="var(--green)" trendBg="var(--greenl)"
-          sub="+6 this month · 5 depts"
-        />
-        <StatCard
-          icon={<UserCheck size={18} />}
-          iconBg="var(--greenl)" iconColor="var(--green)"
-          borderColor="var(--green)"
-          value="218" label="Present Today"
-          trend="↑ 3.1%" trendColor="var(--green)" trendBg="var(--greenl)"
-          sub="88.3% rate · 17 late"
-        />
-        <StatCard
-          icon={<CalendarDays size={18} />}
-          iconBg="var(--amberl)" iconColor="var(--amber)"
-          borderColor="var(--amber)"
-          value="12" label="On Leave Today"
-          trend="— same" trendColor="var(--steel)" trendBg="var(--steell)"
-          sub="3 pending · 9 approved"
-        />
+        <StatCard icon={<Users size={18} />} iconBg="var(--pl)" iconColor="var(--p)" borderColor="var(--p)" value="247" label="Total Employees" trend="↑ 2.4%" trendColor="var(--green)" trendBg="var(--greenl)" sub="+6 this month · 5 depts" />
+        <StatCard icon={<UserCheck size={18} />} iconBg="var(--greenl)" iconColor="var(--green)" borderColor="var(--green)" value="218" label="Present Today" trend="↑ 3.1%" trendColor="var(--green)" trendBg="var(--greenl)" sub="88.3% rate · 17 late" />
+        <StatCard icon={<CalendarDays size={18} />} iconBg="var(--amberl)" iconColor="var(--amber)" borderColor="var(--amber)" value="12" label="On Leave Today" trend="— same" trendColor="var(--steel)" trendBg="var(--steell)" sub="3 pending · 9 approved" />
+      </div>
+
+      {/* Payroll Summary + Quick Actions */}
+      <div className="g2">
+        <div className="card">
+          <div className="ch">
+            <div className="ct"><div className="ct-ico green"><DollarSign size={13} /></div>Payroll Summary — March 2026</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div><div style={{ fontSize: 10.5, color: 'var(--t3)', textTransform: 'uppercase', marginBottom: 4 }}>Total Payroll</div><div className="mono" style={{ fontSize: 18, fontWeight: 800, color: 'var(--p)' }}>{formatPKR(totalPayroll)}</div></div>
+            <div><div style={{ fontSize: 10.5, color: 'var(--t3)', textTransform: 'uppercase', marginBottom: 4 }}>Net Payable</div><div className="mono" style={{ fontSize: 18, fontWeight: 800, color: 'var(--green)' }}>{formatPKR(netPayable)}</div></div>
+            <div><div style={{ fontSize: 10.5, color: 'var(--t3)', textTransform: 'uppercase', marginBottom: 4 }}>Avg Salary/Employee</div><div className="mono" style={{ fontSize: 14, fontWeight: 600 }}>{formatPKR(avgSalary)}</div></div>
+            <div><div style={{ fontSize: 10.5, color: 'var(--t3)', textTransform: 'uppercase', marginBottom: 4 }}>Total Deductions</div><div className="mono" style={{ fontSize: 14, fontWeight: 600, color: 'var(--red)' }}>{formatPKR(totalDeductions)}</div></div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="ch">
+            <div className="ct"><div className="ct-ico blue"><ClipboardList size={13} /></div>Quick Actions</div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button className="btn btn-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => navigate('/payroll')}><DollarSign size={13} /> Process Payroll</button>
+            <button className="btn btn-ghost" style={{ justifyContent: 'flex-start', position: 'relative' }} onClick={() => navigate('/leave')}>
+              <CalendarDays size={13} /> Approve Leaves
+              {pendingLeaves > 0 && <span className="pill pill-red" style={{ marginLeft: 'auto', fontSize: 8, padding: '2px 5px' }}>{pendingLeaves}</span>}
+            </button>
+            <button className="btn btn-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => navigate('/attendance')}><UserCheck size={13} /> Mark Attendance</button>
+            <button className="btn btn-ghost" style={{ justifyContent: 'flex-start' }} onClick={() => navigate('/employees/add')}><Plus size={13} /> Add Employee</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Performance Metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
+        <div className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--greenl)', color: 'var(--green)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><UserCheck size={16} /></div>
+          <div><div className="mono" style={{ fontSize: 18, fontWeight: 800, color: 'var(--green)' }}>{attendanceRate}%</div><div style={{ fontSize: 10.5, color: 'var(--t3)' }}>Attendance Rate</div></div>
+          <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 12, background: 'var(--greenl)', color: 'var(--green)', fontFamily: "'IBM Plex Mono', monospace" }}>↑ 1.2%</span>
+        </div>
+        <div className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--pl)', color: 'var(--p)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CalendarDays size={16} /></div>
+          <div><div className="mono" style={{ fontSize: 18, fontWeight: 800, color: 'var(--p)' }}>{leaveUtilization}%</div><div style={{ fontSize: 10.5, color: 'var(--t3)' }}>Leave Utilization</div></div>
+          <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 12, background: 'var(--amberl)', color: 'var(--amber)', fontFamily: "'IBM Plex Mono', monospace" }}>↑ 5%</span>
+        </div>
+        <div className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 9, background: 'var(--teall)', color: 'var(--teal)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><TrendingUp size={16} /></div>
+          <div><div className="mono" style={{ fontSize: 18, fontWeight: 800, color: 'var(--teal)' }}>{onTimeRate}%</div><div style={{ fontSize: 10.5, color: 'var(--t3)' }}>On-time Arrival</div></div>
+          <span style={{ marginLeft: 'auto', fontSize: 9, fontWeight: 600, padding: '2px 7px', borderRadius: 12, background: 'var(--greenl)', color: 'var(--green)', fontFamily: "'IBM Plex Mono', monospace" }}>↑ 0.8%</span>
+        </div>
       </div>
 
       {/* Donut Charts */}
@@ -173,6 +222,23 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Announcements */}
+      <div className="card" style={{ marginBottom: 12 }}>
+        <div className="ch">
+          <div className="ct"><div className="ct-ico amber"><Megaphone size={13} /></div>Announcements</div>
+          <span className="pill pill-blue" style={{ cursor: 'pointer' }}>View All</span>
+        </div>
+        {announcements.slice(0, 3).map((a, i) => (
+          <div key={i} style={{ padding: '10px 0', borderBottom: i < 2 ? '1px solid var(--br2)' : 'none' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{a.title}</span>
+              <span className="mono" style={{ fontSize: 10, color: 'var(--t3)' }}>{a.date}</span>
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--t2)', marginTop: 3 }}>{a.text}</div>
+          </div>
+        ))}
+      </div>
+
       {/* Birthday Options */}
       <div style={{ marginBottom: 12 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 12 }}>Birthday Display — Stakeholder Options</div>
@@ -199,7 +265,7 @@ export default function Dashboard() {
             <div key={i} className="action-row">
               <span style={{ marginRight: 6 }}>{a.emoji}</span>
               <span style={{ flex: 1 }}>{a.text}</span>
-              <button className="btn btn-sm btn-ghost">{a.action}</button>
+              <button className="btn btn-sm btn-ghost" onClick={() => navigate(a.link)}>{a.action}</button>
             </div>
           ))}
         </div>
@@ -239,7 +305,6 @@ export default function Dashboard() {
   );
 }
 
-/* Stat Card */
 function StatCard({ icon, iconBg, iconColor, borderColor, value, label, trend, trendColor, trendBg, sub }: any) {
   return (
     <div className="card" style={{ borderLeft: `3px solid ${borderColor}`, padding: '16px 18px', position: 'relative' }}>
@@ -248,9 +313,7 @@ function StatCard({ icon, iconBg, iconColor, borderColor, value, label, trend, t
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
         <div style={{ width: 36, height: 36, borderRadius: 9, background: iconBg, color: iconColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
-        <div>
-          <div className="mono" style={{ fontSize: 36, fontWeight: 800, color: 'var(--t1)', lineHeight: 1 }}>{value}</div>
-        </div>
+        <div><div className="mono" style={{ fontSize: 36, fontWeight: 800, color: 'var(--t1)', lineHeight: 1 }}>{value}</div></div>
       </div>
       <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--t2)' }}>{label}</div>
       <div className="mono" style={{ fontSize: 10, color: 'var(--t3)', marginTop: 2 }}>{sub}</div>
@@ -258,22 +321,14 @@ function StatCard({ icon, iconBg, iconColor, borderColor, value, label, trend, t
   );
 }
 
-/* Donut Card */
 function DonutCard({ title, icon, data, total }: { title: string; icon: React.ReactNode; data: any[]; total: number }) {
   return (
     <div className="card">
-      <div className="ch">
-        <div className="ct"><div className="ct-ico blue">{icon}</div>{title}</div>
-      </div>
+      <div className="ch"><div className="ct"><div className="ct-ico blue">{icon}</div>{title}</div></div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
         <div style={{ position: 'relative', width: 160, height: 160, flexShrink: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={data} cx="50%" cy="50%" innerRadius={48} outerRadius={72} dataKey="value" stroke="none">
-                {data.map((d, i) => <Cell key={i} fill={d.color} />)}
-              </Pie>
-              <Tooltip formatter={(v: number) => v} />
-            </PieChart>
+            <PieChart><Pie data={data} cx="50%" cy="50%" innerRadius={48} outerRadius={72} dataKey="value" stroke="none">{data.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie><Tooltip formatter={(v: number) => v} /></PieChart>
           </ResponsiveContainer>
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
             <div className="mono" style={{ fontSize: 18, fontWeight: 800, color: 'var(--t1)' }}>{total}</div>
@@ -295,26 +350,26 @@ function DonutCard({ title, icon, data, total }: { title: string; icon: React.Re
   );
 }
 
-/* Birthday Options */
 function BirthdayOptionA() {
+  const [month, setMonth] = useState(2); // March = 2 (0-indexed display)
+  const months = ['January', 'February', 'March', 'April', 'May'];
+  const birthdayDates: Record<number, number[]> = { 2: [15, 28], 3: [3, 19] };
   const days = Array.from({ length: 31 }, (_, i) => i + 1);
-  const birthdayDates = [15, 28];
+  const bdays = birthdayDates[month] || [];
   return (
     <div className="card">
-      <div className="ch">
-        <div className="ct"><div className="ct-ico blue"><Cake size={13} /></div>Option A — Calendar</div>
-      </div>
+      <div className="ch"><div className="ct"><div className="ct-ico blue"><Cake size={13} /></div>Option A — Calendar</div></div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <ChevronLeft size={14} style={{ cursor: 'pointer', color: 'var(--t3)' }} />
-        <span style={{ fontSize: 12, fontWeight: 600 }}>March 2026</span>
-        <ChevronRight size={14} style={{ cursor: 'pointer', color: 'var(--t3)' }} />
+        <ChevronLeft size={14} style={{ cursor: 'pointer', color: 'var(--t3)' }} onClick={() => setMonth(Math.max(0, month - 1))} />
+        <span style={{ fontSize: 12, fontWeight: 600 }}>{months[month]} 2026</span>
+        <ChevronRight size={14} style={{ cursor: 'pointer', color: 'var(--t3)' }} onClick={() => setMonth(Math.min(4, month + 1))} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, fontSize: 9, textAlign: 'center' }}>
         {['S','M','T','W','T','F','S'].map((d,i) => <div key={i} style={{ fontWeight: 600, color: 'var(--t3)', padding: 4 }}>{d}</div>)}
         {days.map(d => (
-          <div key={d} style={{ padding: 4, borderRadius: 4, background: birthdayDates.includes(d) ? 'var(--pl)' : 'transparent', fontWeight: birthdayDates.includes(d) ? 600 : 400, color: birthdayDates.includes(d) ? 'var(--p)' : 'var(--t2)', fontSize: 10.5 }}>
+          <div key={d} style={{ padding: 4, borderRadius: 4, background: bdays.includes(d) ? 'var(--pl)' : 'transparent', fontWeight: bdays.includes(d) ? 600 : 400, color: bdays.includes(d) ? 'var(--p)' : 'var(--t2)', fontSize: 10.5, cursor: bdays.includes(d) ? 'pointer' : 'default' }} title={bdays.includes(d) ? 'Birthday!' : ''}>
             {d}
-            {birthdayDates.includes(d) && <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--p)', margin: '2px auto 0' }} />}
+            {bdays.includes(d) && <div style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--p)', margin: '2px auto 0' }} />}
           </div>
         ))}
       </div>
@@ -325,19 +380,12 @@ function BirthdayOptionA() {
 function BirthdayOptionB({ birthdays }: { birthdays: any[] }) {
   return (
     <div className="card">
-      <div className="ch">
-        <div className="ct"><div className="ct-ico amber"><Cake size={13} /></div>Option B — List 🎂</div>
-      </div>
+      <div className="ch"><div className="ct"><div className="ct-ico amber"><Cake size={13} /></div>Option B — List 🎂</div></div>
       {birthdays.filter(b => b.daysAway <= 30).map((b, i) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid var(--br2)', background: b.daysAway === 0 ? 'var(--pl)' : 'transparent', borderRadius: 6, paddingLeft: b.daysAway === 0 ? 8 : 0 }}>
           <div className="feed-av" style={{ background: 'var(--p)', width: 28, height: 28, fontSize: 9 }}>{b.initials}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 600 }}>{b.name}</div>
-            <div className="mono" style={{ fontSize: 10, color: 'var(--t3)' }}>{b.date}</div>
-          </div>
-          <span className={`pill ${b.daysAway === 0 ? 'pill-green' : 'pill-blue'}`}>
-            {b.daysAway === 0 ? 'TODAY 🎂' : `In ${b.daysAway} days`}
-          </span>
+          <div style={{ flex: 1 }}><div style={{ fontSize: 12.5, fontWeight: 600 }}>{b.name}</div><div className="mono" style={{ fontSize: 10, color: 'var(--t3)' }}>{b.date}</div></div>
+          <span className={`pill ${b.daysAway === 0 ? 'pill-green' : 'pill-blue'}`}>{b.daysAway === 0 ? 'TODAY 🎂' : `In ${b.daysAway} days`}</span>
         </div>
       ))}
     </div>
@@ -347,9 +395,7 @@ function BirthdayOptionB({ birthdays }: { birthdays: any[] }) {
 function BirthdayOptionC({ birthdays }: { birthdays: any[] }) {
   return (
     <div className="card">
-      <div className="ch">
-        <div className="ct"><div className="ct-ico green"><Cake size={13} /></div>Option C — Combined</div>
-      </div>
+      <div className="ch"><div className="ct"><div className="ct-ico green"><Cake size={13} /></div>Option C — Combined</div></div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <div>
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>CALENDAR</div>
