@@ -22,6 +22,8 @@ import {
   penaltiesConfig as defaultPenaltiesConfig,
   reportingManagers as defaultReportingMgrs,
   customFields as defaultCustomFields,
+  taxConfig as defaultTaxConfig,
+  globalDays as defaultGlobalDays,
 } from '../data/dummyData';
 
 function load<T>(key: string, fallback: T): T {
@@ -40,29 +42,20 @@ interface DataContextType {
   setEmployees: (fn: (prev: Employee[]) => Employee[]) => void;
   addEmployee: (emp: Employee) => void;
   deleteEmployee: (id: string) => void;
-
   leaveRequests: any[];
   setLeaveRequests: (fn: (prev: any[]) => any[]) => void;
-
   payrollData: any[];
   setPayrollData: (fn: (prev: any[]) => any[]) => void;
-
   promotions: any[];
   setPromotions: (fn: (prev: any[]) => any[]) => void;
-
   penalties: any[];
   setPenalties: (fn: (prev: any[]) => any[]) => void;
-
   auditLog: any[];
   setAuditLog: (fn: (prev: any[]) => any[]) => void;
-
   hrAccounts: any[];
   setHrAccounts: (fn: (prev: any[]) => any[]) => void;
-
   attendanceData: any[];
   setAttendanceData: (fn: (prev: any[]) => any[]) => void;
-
-  // Settings - simple string arrays
   departments: string[];
   setDepartments: (fn: (prev: string[]) => string[]) => void;
   designations: string[];
@@ -77,8 +70,6 @@ interface DataContextType {
   setJobStatuses: (fn: (prev: string[]) => string[]) => void;
   reportingManagers: string[];
   setReportingManagers: (fn: (prev: string[]) => string[]) => void;
-
-  // Settings - object arrays
   shifts: typeof defaultShifts;
   setShifts: (fn: (prev: typeof defaultShifts) => typeof defaultShifts) => void;
   leaveTypes: typeof defaultLeaveTypes;
@@ -91,6 +82,10 @@ interface DataContextType {
   setPenaltiesConfig: (fn: (prev: typeof defaultPenaltiesConfig) => typeof defaultPenaltiesConfig) => void;
   customFields: typeof defaultCustomFields;
   setCustomFields: (fn: (prev: typeof defaultCustomFields) => typeof defaultCustomFields) => void;
+  taxConfig: typeof defaultTaxConfig;
+  setTaxConfig: (fn: (prev: typeof defaultTaxConfig) => typeof defaultTaxConfig) => void;
+  globalDays: typeof defaultGlobalDays;
+  setGlobalDays: (fn: (prev: typeof defaultGlobalDays) => typeof defaultGlobalDays) => void;
 }
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -129,6 +124,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [payrollComponents, setPayrollComponents] = usePersisted('payrollComponents', defaultPayrollComps);
   const [penaltiesConfig, setPenaltiesConfig] = usePersisted('penaltiesConfig', defaultPenaltiesConfig);
   const [customFields, setCustomFields] = usePersisted('customFields', defaultCustomFields);
+  const [taxConfig, setTaxConfig] = usePersisted('taxConfig', defaultTaxConfig);
+  const [globalDays, setGlobalDays] = usePersisted('globalDays', defaultGlobalDays);
 
   const addEmployee = useCallback((emp: Employee) => {
     setEmployees(prev => [...prev, emp]);
@@ -161,6 +158,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       payrollComponents, setPayrollComponents,
       penaltiesConfig, setPenaltiesConfig,
       customFields, setCustomFields,
+      taxConfig, setTaxConfig,
+      globalDays, setGlobalDays,
     }}>
       {children}
     </DataContext.Provider>

@@ -186,6 +186,17 @@ export const customFields = {
   extra: [],
 };
 
+export const taxConfig = [
+  { id: 'TC001', salaryFrom: 0, salaryTo: 50000, taxRatePercent: 0, fixedAmount: 0, active: true },
+  { id: 'TC002', salaryFrom: 50001, salaryTo: 100000, taxRatePercent: 5, fixedAmount: 0, active: true },
+  { id: 'TC003', salaryFrom: 100001, salaryTo: null as number | null, taxRatePercent: 10, fixedAmount: 0, active: true },
+];
+
+export const globalDays: { id: string; title: string; date: string; type: string; affects_attendance: boolean; show_banner: boolean; banner_message: string; created_by: string; created_at: string; is_active: boolean }[] = [
+  { id: 'GD001', title: 'Pakistan Day', date: '2026-03-23', type: 'holiday', affects_attendance: true, show_banner: false, banner_message: '', created_by: 'superadmin', created_at: '2026-01-01T00:00:00Z', is_active: true },
+  { id: 'GD002', title: 'Eid ul Fitr', date: '2026-03-28', type: 'holiday', affects_attendance: true, show_banner: true, banner_message: 'Office closed for Eid ul Fitr celebrations', created_by: 'superadmin', created_at: '2026-03-01T00:00:00Z', is_active: true },
+];
+
 export function formatPKR(amount: number): string {
   return 'PKR ' + amount.toLocaleString('en-PK', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }

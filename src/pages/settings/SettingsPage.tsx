@@ -10,11 +10,13 @@ interface SettingsPageProps {
   data: Record<string, any>[];
   modalFields?: { label: string; type?: string; options?: string[] }[];
   onAdd?: (row: Record<string, string>) => void;
+  onEdit?: (index: number, row: Record<string, string>) => void;
   onDelete?: (index: number) => void;
 }
 
-export default function SettingsPage({ title, columns, data, modalFields, onAdd, onDelete }: SettingsPageProps) {
+export default function SettingsPage({ title, columns, data, modalFields, onAdd, onEdit, onDelete }: SettingsPageProps) {
   const [addModal, setAddModal] = useState(false);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const { showToast } = useToastContext();
@@ -31,6 +33,29 @@ export default function SettingsPage({ title, columns, data, modalFields, onAdd,
       setSaving(false);
       formRef.current = {};
     }, 400);
+  };
+
+  const handleEdit = () => {
+    if (editIdx === null) return;
+    setSaving(true);
+    setTimeout(() => {
+      if (onEdit) onEdit(editIdx, formRef.current);
+      showToast(`${title.replace(/s$/, '')} updated`);
+      setEditIdx(null);
+      setSaving(false);
+      formRef.current = {};
+    }, 400);
+  };
+
+  const openEdit = (idx: number) => {
+    const row = data[idx];
+    const vals: Record<string, string> = {};
+    const keys = Object.keys(row);
+    fields.forEach((f, fi) => {
+      vals[f.label] = String(keys[fi] !== undefined ? row[keys[fi]] : '');
+    });
+    formRef.current = vals;
+    setEditIdx(idx);
   };
 
   const handleDelete = () => {
@@ -62,7 +87,7 @@ export default function SettingsPage({ title, columns, data, modalFields, onAdd,
                   })}
                   <td>
                     <div style={{ display: 'flex', gap: 4 }}>
-                      <button className="ico-btn" style={{ width: 28, height: 28 }}><Pencil size={13} /></button>
+                      <button className="ico-btn" style={{ width: 28, height: 28 }} onClick={() => openEdit(i)}><Pencil size={13} /></button>
                       <button className="ico-btn" style={{ width: 28, height: 28 }} onClick={() => setDeleteId(i)}><Trash2 size={13} /></button>
                     </div>
                   </td>
@@ -72,6 +97,8 @@ export default function SettingsPage({ title, columns, data, modalFields, onAdd,
           </table>
         )}
       </div>
+
+      {/* Add Modal */}
       <Modal open={addModal} onClose={() => setAddModal(false)} title={`Add ${title.replace(/s$/, '')}`} footer={
         <><button className="btn btn-secondary" onClick={() => setAddModal(false)}>Cancel</button>
         <button className="btn btn-primary" onClick={handleAdd} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button></>
@@ -84,6 +111,21 @@ export default function SettingsPage({ title, columns, data, modalFields, onAdd,
           </div>
         ))}
       </Modal>
+
+      {/* Edit Modal */}
+      <Modal open={editIdx !== null} onClose={() => setEditIdx(null)} title={`Edit ${title.replace(/s$/, '')}`} footer={
+        <><button className="btn btn-secondary" onClick={() => setEditIdx(null)}>Cancel</button>
+        <button className="btn btn-primary" onClick={handleEdit} disabled={saving}>{saving ? 'Saving...' : 'Update'}</button></>
+      }>
+        {fields.map((f, i) => (
+          <div className="form-group" key={i}>
+            <label className="form-label">{f.label}</label>
+            {f.options ? <select className="input select-input" defaultValue={formRef.current[f.label] || ''} onChange={e => formRef.current[f.label] = e.target.value}>{f.options.map((o: string) => <option key={o}>{o}</option>)}</select> :
+              <input className="input" type={(f.type as string) || 'text'} defaultValue={formRef.current[f.label] || ''} onChange={e => formRef.current[f.label] = e.target.value} />}
+          </div>
+        ))}
+      </Modal>
+
       <ConfirmDialog open={deleteId !== null} title="Delete Item" message="Are you sure? This action cannot be undone." onConfirm={handleDelete} onCancel={() => setDeleteId(null)} />
     </div>
   );
