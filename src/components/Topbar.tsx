@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Search } from "lucide-react";
+import { Search, LogOut, ShieldCheck } from "lucide-react";
 
 const routeNames: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -22,8 +22,9 @@ const routeNames: Record<string, string> = {
 };
 
 export default function Topbar() {
-  const { user, activeRole, switchRole } = useAuth();
+  const auth = useAuth(); // Poora object le rahe hain error se bachne ke liye
   const location = useLocation();
+  const navigate = useNavigate();
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -31,16 +32,18 @@ export default function Topbar() {
     return () => clearInterval(timer);
   }, []);
 
+  const handleLogout = () => {
+    if (auth?.logout) {
+      auth.logout();
+      navigate("/login", { replace: true });
+    }
+  };
+
   const pageName =
     routeNames[location.pathname] ||
     (location.pathname.startsWith("/settings/")
-      ? location.pathname
-          .split("/")
-          .pop()
-          ?.replace(/-/g, " ")
-          .replace(/\b\w/g, (c) => c.toUpperCase())
-      : "Page") ||
-    "Page";
+      ? location.pathname.split("/").pop()?.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+      : "Page");
 
   const dateStr = time.toLocaleDateString("en-PK", {
     weekday: "short",
@@ -48,6 +51,10 @@ export default function Topbar() {
     month: "short",
     year: "numeric",
   });
+
+  // Role display logic
+  const displayRole = auth?.user?.role === 'super_admin' ? 'Super Admin' : 
+                      auth?.user?.role === 'hr' ? 'HR Module' : 'Employee';
 
   return (
     <div className="topbar">
@@ -57,34 +64,48 @@ export default function Topbar() {
         <span className="bc-cur">{pageName}</span>
       </div>
 
-      <div
-        className="topbar-search"
-        style={{ marginLeft: "auto", marginRight: 8 }}
-      >
+      <div className="topbar-search" style={{ marginLeft: "auto", marginRight: 8 }}>
         <Search size={13} style={{ color: "var(--t3)" }} />
         <span>Search employees, records, reports...</span>
         <kbd>⌘K</kbd>
       </div>
 
       <div className="topbar-right">
-        <div className="role-switcher">
-          {(["hr", "super_admin", "employee"] as const).map((role) => (
-            <button
-              key={role}
-              className={activeRole === role ? "active" : ""}
-              onClick={() => switchRole(role)}
-            >
-              {role === "hr"
-                ? "HR"
-                : role === "super_admin"
-                  ? "Super Admin"
-                  : "Employee"}
-            </button>
-          ))}
+        {/* Module Label - No more switcher */}
+        <div className="active-role-display" style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          background: 'rgba(37, 99, 235, 0.1)', 
+          padding: '4px 12px', 
+          borderRadius: '8px',
+          border: '1px solid rgba(37, 99, 235, 0.2)'
+        }}>
+          <ShieldCheck size={14} color="#2563eb" />
+          <span style={{ fontSize: '11px', fontWeight: '800', color: '#1e293b', textTransform: 'uppercase' }}>
+             {displayRole}
+          </span>
         </div>
+
         <span className="tdate">{dateStr}</span>
-        <div className="t-av">
-          {user?.username?.substring(0, 2).toUpperCase() || "SA"}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="t-av">
+            {auth?.user?.username?.substring(0, 2).toUpperCase() || "UN"}
+          </div>
+          <button 
+            onClick={handleLogout}
+            style={{ 
+              background: '#fee2e2', 
+              color: '#ef4444', 
+              border: 'none', 
+              padding: '6px', 
+              borderRadius: '6px', 
+              cursor: 'pointer' 
+            }}
+          >
+            <LogOut size={16} />
+          </button>
         </div>
       </div>
     </div>

@@ -50,16 +50,13 @@ export default function Sidebar() {
     <div className="sidebar">
       <div className="sb-logo">
         <div className="sb-logo-row">
-          <div className="sb-mark"><Users size={17} /></div>
+          {/* Logo icon (sb-mark) yahan se hata diya gaya hai */}
           <div>
             <div className="sb-title">EMS</div>
             <div className="sb-subtitle">Employee Management</div>
           </div>
         </div>
-        <div className="sb-env">
-          <div className="sb-env-dot" />
-          <span className="sb-env-text">PROTOTYPE · v1.0</span>
-        </div>
+        {/* Prototype wala pura section yahan se remove kar diya gaya hai */}
       </div>
 
       <div className="sb-sec">
